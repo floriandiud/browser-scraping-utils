@@ -38,11 +38,21 @@ export class ListStorage {
     }
     initDB() {
         return __awaiter(this, void 0, void 0, function* () {
-            this.db = yield openDB(this.storageKey, 3, {
-                upgrade(db) {
-                    db.createObjectStore('data', {
-                        keyPath: '_id'
-                    });
+            this.db = yield openDB(this.storageKey, 4, {
+                upgrade(db, oldVersion, newVersion, transaction) {
+                    let dataStore;
+                    if (!db.objectStoreNames.contains("data")) {
+                        dataStore = db.createObjectStore('data', {
+                            keyPath: '_id'
+                        });
+                    }
+                    else {
+                        dataStore = transaction.objectStore('items');
+                    }
+                    if (dataStore && !dataStore.indexNames.contains("_createdAt")) {
+                        // @ts-ignore
+                        dataStore.createIndex("_createdAt", "_createdAt");
+                    }
                 }
             });
         });
@@ -50,7 +60,7 @@ export class ListStorage {
     _dbAddElem(identifier, elem) {
         return __awaiter(this, void 0, void 0, function* () {
             if (this.persistent && this.db) {
-                yield this.db.put('data', Object.assign({ "_id": identifier }, elem));
+                yield this.db.put('data', Object.assign({ "_id": identifier, "_createdAt": new Date() }, elem));
             }
             else {
                 throw new Error('DB doesnt exist');
@@ -112,7 +122,7 @@ export class ListStorage {
         return __awaiter(this, void 0, void 0, function* () {
             if (this.persistent && this.db) {
                 const data = new Map();
-                const dbData = yield this.db.getAll('data');
+                const dbData = yield this.db.getAllFromIndex('data', "_createdAt");
                 if (dbData) {
                     dbData.forEach((storageItem) => {
                         const { _id } = storageItem, itemData = __rest(storageItem, ["_id"]);
