@@ -33,9 +33,9 @@ export abstract class ListStorage<Type> {
                         keyPath: '_id'
                     });
                 } else {
-                    dataStore = transaction.objectStore('items');
+                    dataStore = transaction.objectStore('data');
                 }
-                if (dataStore&& !dataStore.indexNames.contains("_createdAt")) {
+                if (dataStore && !dataStore.indexNames.contains("_createdAt")) {
                     // @ts-ignore
                     dataStore.createIndex("_createdAt", "_createdAt");
                 }

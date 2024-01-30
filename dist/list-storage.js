@@ -47,7 +47,7 @@ export class ListStorage {
                         });
                     }
                     else {
-                        dataStore = transaction.objectStore('items');
+                        dataStore = transaction.objectStore('data');
                     }
                     if (dataStore && !dataStore.indexNames.contains("_createdAt")) {
                         // @ts-ignore
