@@ -1,4 +1,4 @@
-import { IDBPDatabase } from 'idb';
+import { IDBPDatabase, IDBPTransaction } from 'idb';
 export declare abstract class ListStorage<Type> {
     readonly name: string;
     persistent: boolean;
@@ -10,7 +10,7 @@ export declare abstract class ListStorage<Type> {
     });
     get storageKey(): string;
     initDB(): Promise<void>;
-    _dbAddElem(identifier: string, elem: Type): Promise<void>;
+    _dbAddElem(identifier: string, elem: Type, tx?: IDBPTransaction<unknown, ["data"], "readwrite">): Promise<void>;
     addElem(identifier: string, elem: Type): Promise<void>;
     addElems(elems: [string, Type][]): Promise<void>;
     clear(): Promise<void>;

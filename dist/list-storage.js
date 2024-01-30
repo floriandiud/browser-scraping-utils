@@ -38,12 +38,16 @@ export class ListStorage {
     }
     initDB() {
         return __awaiter(this, void 0, void 0, function* () {
-            this.db = yield openDB(this.storageKey, 4, {
+            this.db = yield openDB(this.storageKey, 5, {
                 upgrade(db, oldVersion, newVersion, transaction) {
                     let dataStore;
+                    if (oldVersion < 5) {
+                        db.deleteObjectStore('data');
+                    }
                     if (!db.objectStoreNames.contains("data")) {
                         dataStore = db.createObjectStore('data', {
-                            keyPath: '_id'
+                            keyPath: '_id',
+                            autoIncrement: true
                         });
                     }
                     else {
@@ -53,14 +57,27 @@ export class ListStorage {
                         // @ts-ignore
                         dataStore.createIndex("_createdAt", "_createdAt");
                     }
+                    if (dataStore && !dataStore.indexNames.contains("_pk")) {
+                        // @ts-ignore
+                        dataStore.createIndex("_pk", "_pk", {
+                            unique: true
+                        });
+                    }
                 }
             });
         });
     }
-    _dbAddElem(identifier, elem) {
+    _dbAddElem(identifier, elem, tx) {
         return __awaiter(this, void 0, void 0, function* () {
             if (this.persistent && this.db) {
-                yield this.db.put('data', Object.assign({ "_id": identifier, "_createdAt": new Date() }, elem));
+                if (!tx) {
+                    tx = this.db.transaction('data', 'readwrite');
+                }
+                const store = tx.store;
+                const existingValue = yield store.index("_pk").get(identifier);
+                if (!existingValue) {
+                    yield store.put(Object.assign({ "_pk": identifier, "_createdAt": new Date() }, elem));
+                }
             }
             else {
                 throw new Error('DB doesnt exist');
@@ -86,9 +103,11 @@ export class ListStorage {
         return __awaiter(this, void 0, void 0, function* () {
             if (this.persistent && this.db) {
                 const createPromises = [];
+                const tx = this.db.transaction('data', 'readwrite');
                 elems.forEach(([identifier, elem]) => {
-                    createPromises.push(this._dbAddElem(identifier, elem));
+                    createPromises.push(this._dbAddElem(identifier, elem, tx));
                 });
+                createPromises.push(tx.done);
                 yield Promise.all(createPromises);
             }
             else {
@@ -122,7 +141,7 @@ export class ListStorage {
         return __awaiter(this, void 0, void 0, function* () {
             if (this.persistent && this.db) {
                 const data = new Map();
-                const dbData = yield this.db.getAllFromIndex('data', "_createdAt");
+                const dbData = yield this.db.getAll('data');
                 if (dbData) {
                     dbData.forEach((storageItem) => {
                         const { _id } = storageItem, itemData = __rest(storageItem, ["_id"]);

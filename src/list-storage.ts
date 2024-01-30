@@ -1,4 +1,4 @@
-import { openDB, IDBPDatabase, IDBPObjectStore } from 'idb';
+import { openDB, IDBPDatabase, IDBPObjectStore, IDBPTransaction } from 'idb';
 
 export abstract class ListStorage<Type> {
     readonly name: string = 'scrape-storage';
@@ -24,13 +24,18 @@ export abstract class ListStorage<Type> {
     }
 
     async initDB(){
-        this.db = await openDB(this.storageKey, 4, {
+        this.db = await openDB(this.storageKey, 5, {
             upgrade(db, oldVersion: number, newVersion:number, transaction) {
                 let dataStore: IDBPObjectStore<any, any, any, any>;
+
+                if(oldVersion<5){
+                    db.deleteObjectStore('data');
+                }
                 
                 if (!db.objectStoreNames.contains("data")) {
                     dataStore = db.createObjectStore('data', {
-                        keyPath: '_id'
+                        keyPath: '_id',
+                        autoIncrement: true
                     });
                 } else {
                     dataStore = transaction.objectStore('data');
@@ -39,17 +44,35 @@ export abstract class ListStorage<Type> {
                     // @ts-ignore
                     dataStore.createIndex("_createdAt", "_createdAt");
                 }
+                if (dataStore && !dataStore.indexNames.contains("_pk")) {
+                    // @ts-ignore
+                    dataStore.createIndex("_pk", "_pk", {
+                        unique: true
+                    });
+                }
             }
         });
     }
 
-    async _dbAddElem(identifier: string, elem: Type): Promise<void>{
+    async _dbAddElem(
+        identifier: string,
+        elem: Type,
+        tx?: IDBPTransaction<unknown, ["data"], "readwrite">
+    ): Promise<void>{
         if(this.persistent && this.db){
-            await this.db.put('data', {
-                "_id": identifier,
-                "_createdAt": new Date(),
-                ...elem  
-            })
+            if(!tx){
+                tx = this.db.transaction('data', 'readwrite');
+            }
+            const store = tx.store;
+
+            const existingValue = await store.index("_pk").get(identifier)
+            if(!existingValue){
+                await store.put({
+                    "_pk": identifier,
+                    "_createdAt": new Date(),
+                    ...elem  
+                })
+            }
         }else{
             throw new Error('DB doesnt exist')
         }
@@ -70,11 +93,15 @@ export abstract class ListStorage<Type> {
     async addElems(elems: [string, Type][]){
         if(this.persistent && this.db){
             const createPromises: Promise<void>[] = [];
+
+            const tx = this.db.transaction('data', 'readwrite');
             elems.forEach(([identifier, elem])=>{
                 createPromises.push(
-                    this._dbAddElem(identifier, elem)
+                    this._dbAddElem(identifier, elem, tx)
                 )
-            })
+            });
+            
+            createPromises.push(tx.done)
             await Promise.all(createPromises)
         }else{
             elems.forEach(([identifier, elem])=>{
@@ -102,7 +129,7 @@ export abstract class ListStorage<Type> {
     async getAll(): Promise<Map<string, Type>>{
         if(this.persistent && this.db){
             const data = new Map<string, Type>()
-            const dbData = await this.db.getAllFromIndex('data', "_createdAt")
+            const dbData = await this.db.getAll('data')
             if(dbData){
                 dbData.forEach((storageItem)=>{
                     const {
