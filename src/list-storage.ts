@@ -29,7 +29,9 @@ export abstract class ListStorage<Type> {
                 let dataStore: IDBPObjectStore<any, any, any, any>;
 
                 if(oldVersion<5){
-                    db.deleteObjectStore('data');
+                    try{
+                        db.deleteObjectStore('data');
+                    }catch(err){}
                 }
                 
                 if (!db.objectStoreNames.contains("data")) {
@@ -54,10 +56,42 @@ export abstract class ListStorage<Type> {
         });
     }
 
-    async _dbAddElem(
+    async _dbGetElem(
+        identifier: string,
+        tx?: IDBPTransaction<unknown, ["data"], "readonly">,
+    ): Promise<Type|undefined>{
+        if(this.persistent && this.db){
+            if(!tx){
+                tx = this.db.transaction('data', 'readonly');
+            }
+            const store = tx.store;
+
+            const existingValue = await store.index("_pk").get(identifier)
+            return existingValue;
+        }else{
+            throw new Error('DB doesnt exist')
+        }
+    }
+
+    async getElem(
+        identifier: string
+    ): Promise<Type|undefined> {
+        if(this.persistent && this.db){
+            try{
+                return await this._dbGetElem(identifier)
+            }catch(err){
+                console.error(err)
+            }
+        }else{
+            this.data.get(identifier);
+        }
+    }
+
+    async _dbSetElem(
         identifier: string,
         elem: Type,
-        tx?: IDBPTransaction<unknown, ["data"], "readwrite">
+        updateExisting: boolean = false,
+        tx?: IDBPTransaction<unknown, ["data"], "readwrite">,
     ): Promise<void>{
         if(this.persistent && this.db){
             if(!tx){
@@ -66,7 +100,15 @@ export abstract class ListStorage<Type> {
             const store = tx.store;
 
             const existingValue = await store.index("_pk").get(identifier)
-            if(!existingValue){
+            if(existingValue){
+                if(updateExisting){
+                    await store.put({
+                        ...existingValue,
+                        ...elem  
+                    })
+                }
+            }else{
+                // New elem
                 await store.put({
                     "_pk": identifier,
                     "_createdAt": new Date(),
@@ -78,10 +120,14 @@ export abstract class ListStorage<Type> {
         }
     }
 
-    async addElem(identifier: string, elem: Type){
+    async addElem(
+        identifier: string,
+        elem: Type,
+        updateExisting: boolean = false
+    ){
         if(this.persistent && this.db){
             try{
-                await this._dbAddElem(identifier, elem)
+                await this._dbSetElem(identifier, elem, updateExisting)
             }catch(err){
                 console.error(err)
             }
@@ -90,14 +136,17 @@ export abstract class ListStorage<Type> {
         }
     }
 
-    async addElems(elems: [string, Type][]){
+    async addElems(
+        elems: [string, Type][],
+        updateExisting: boolean = false
+    ){
         if(this.persistent && this.db){
             const createPromises: Promise<void>[] = [];
 
             const tx = this.db.transaction('data', 'readwrite');
             elems.forEach(([identifier, elem])=>{
                 createPromises.push(
-                    this._dbAddElem(identifier, elem, tx)
+                    this._dbSetElem(identifier, elem, updateExisting, tx)
                 )
             });
             

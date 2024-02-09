@@ -10,9 +10,11 @@ export declare abstract class ListStorage<Type> {
     });
     get storageKey(): string;
     initDB(): Promise<void>;
-    _dbAddElem(identifier: string, elem: Type, tx?: IDBPTransaction<unknown, ["data"], "readwrite">): Promise<void>;
-    addElem(identifier: string, elem: Type): Promise<void>;
-    addElems(elems: [string, Type][]): Promise<void>;
+    _dbGetElem(identifier: string, tx?: IDBPTransaction<unknown, ["data"], "readonly">): Promise<Type | undefined>;
+    getElem(identifier: string): Promise<Type | undefined>;
+    _dbSetElem(identifier: string, elem: Type, updateExisting?: boolean, tx?: IDBPTransaction<unknown, ["data"], "readwrite">): Promise<void>;
+    addElem(identifier: string, elem: Type, updateExisting?: boolean): Promise<void>;
+    addElems(elems: [string, Type][], updateExisting?: boolean): Promise<void>;
     clear(): Promise<void>;
     getCount(): Promise<number>;
     getAll(): Promise<Map<string, Type>>;

@@ -42,7 +42,10 @@ export class ListStorage {
                 upgrade(db, oldVersion, newVersion, transaction) {
                     let dataStore;
                     if (oldVersion < 5) {
-                        db.deleteObjectStore('data');
+                        try {
+                            db.deleteObjectStore('data');
+                        }
+                        catch (err) { }
                     }
                     if (!db.objectStoreNames.contains("data")) {
                         dataStore = db.createObjectStore('data', {
@@ -67,7 +70,37 @@ export class ListStorage {
             });
         });
     }
-    _dbAddElem(identifier, elem, tx) {
+    _dbGetElem(identifier, tx) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this.persistent && this.db) {
+                if (!tx) {
+                    tx = this.db.transaction('data', 'readonly');
+                }
+                const store = tx.store;
+                const existingValue = yield store.index("_pk").get(identifier);
+                return existingValue;
+            }
+            else {
+                throw new Error('DB doesnt exist');
+            }
+        });
+    }
+    getElem(identifier) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this.persistent && this.db) {
+                try {
+                    return yield this._dbGetElem(identifier);
+                }
+                catch (err) {
+                    console.error(err);
+                }
+            }
+            else {
+                this.data.get(identifier);
+            }
+        });
+    }
+    _dbSetElem(identifier, elem, updateExisting = false, tx) {
         return __awaiter(this, void 0, void 0, function* () {
             if (this.persistent && this.db) {
                 if (!tx) {
@@ -75,7 +108,13 @@ export class ListStorage {
                 }
                 const store = tx.store;
                 const existingValue = yield store.index("_pk").get(identifier);
-                if (!existingValue) {
+                if (existingValue) {
+                    if (updateExisting) {
+                        yield store.put(Object.assign(Object.assign({}, existingValue), elem));
+                    }
+                }
+                else {
+                    // New elem
                     yield store.put(Object.assign({ "_pk": identifier, "_createdAt": new Date() }, elem));
                 }
             }
@@ -84,11 +123,11 @@ export class ListStorage {
             }
         });
     }
-    addElem(identifier, elem) {
+    addElem(identifier, elem, updateExisting = false) {
         return __awaiter(this, void 0, void 0, function* () {
             if (this.persistent && this.db) {
                 try {
-                    yield this._dbAddElem(identifier, elem);
+                    yield this._dbSetElem(identifier, elem, updateExisting);
                 }
                 catch (err) {
                     console.error(err);
@@ -99,13 +138,13 @@ export class ListStorage {
             }
         });
     }
-    addElems(elems) {
+    addElems(elems, updateExisting = false) {
         return __awaiter(this, void 0, void 0, function* () {
             if (this.persistent && this.db) {
                 const createPromises = [];
                 const tx = this.db.transaction('data', 'readwrite');
                 elems.forEach(([identifier, elem]) => {
-                    createPromises.push(this._dbAddElem(identifier, elem, tx));
+                    createPromises.push(this._dbSetElem(identifier, elem, updateExisting, tx));
                 });
                 createPromises.push(tx.done);
                 yield Promise.all(createPromises);
