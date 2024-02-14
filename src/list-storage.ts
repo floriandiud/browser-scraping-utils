@@ -100,6 +100,7 @@ export abstract class ListStorage<Type> {
             const store = tx.store;
 
             const existingValue = await store.index("_pk").get(identifier)
+
             if(existingValue){
                 if(updateExisting){
                     await store.put({
@@ -144,14 +145,20 @@ export abstract class ListStorage<Type> {
             const createPromises: Promise<void>[] = [];
 
             const tx = this.db.transaction('data', 'readwrite');
+            const processedIdentifiers: string[] = []
             elems.forEach(([identifier, elem])=>{
-                createPromises.push(
-                    this._dbSetElem(identifier, elem, updateExisting, tx)
-                )
+                // Cannot send twice the same identifier in a single transaction. Would fail the whole transaction
+                if(processedIdentifiers.indexOf(identifier)===-1){
+                    processedIdentifiers.push(identifier)
+                    createPromises.push(
+                        this._dbSetElem(identifier, elem, updateExisting, tx)
+                    )
+                }
             });
-            
-            createPromises.push(tx.done)
-            await Promise.all(createPromises)
+            if(createPromises.length > 0){
+                createPromises.push(tx.done)
+                await Promise.all(createPromises)
+            }
         }else{
             elems.forEach(([identifier, elem])=>{
                 this.addElem(identifier, elem)

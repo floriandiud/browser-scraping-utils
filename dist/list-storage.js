@@ -143,11 +143,18 @@ export class ListStorage {
             if (this.persistent && this.db) {
                 const createPromises = [];
                 const tx = this.db.transaction('data', 'readwrite');
+                const processedIdentifiers = [];
                 elems.forEach(([identifier, elem]) => {
-                    createPromises.push(this._dbSetElem(identifier, elem, updateExisting, tx));
+                    // Cannot send twice the same identifier in a single transaction. Would fail the whole transaction
+                    if (processedIdentifiers.indexOf(identifier) === -1) {
+                        processedIdentifiers.push(identifier);
+                        createPromises.push(this._dbSetElem(identifier, elem, updateExisting, tx));
+                    }
                 });
-                createPromises.push(tx.done);
-                yield Promise.all(createPromises);
+                if (createPromises.length > 0) {
+                    createPromises.push(tx.done);
+                    yield Promise.all(createPromises);
+                }
             }
             else {
                 elems.forEach(([identifier, elem]) => {
