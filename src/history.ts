@@ -85,9 +85,7 @@ export class HistoryTracker {
             const listElem = document.createElement('li');
             listElem.setAttribute('style', historyLiStyles.join(''));
 
-            listElem.innerHTML = `<div>
-            #${log.index} ${log.label} (${log.numberItems})
-            </div>`;
+            listElem.innerHTML = `<div>#${log.index} ${log.label} (${log.numberItems})</div>`;
 
             if(log.cancellable){
                 // Add delete icon
