@@ -29,9 +29,9 @@ export declare abstract class ListStorage<Type> {
     initDB(): Promise<void>;
     _dbGetElem(identifier: string, tx?: IDBPTransaction<ElemDBSchema, ["data"], "readonly">): Promise<Type | undefined>;
     getElem(identifier: string): Promise<Type | undefined>;
-    _dbSetElem(identifier: string, elem: Type, updateExisting?: boolean, groupId?: string, tx?: IDBPTransaction<ElemDBSchema, ["data"], "readwrite">): Promise<void>;
-    addElem(identifier: string, elem: Type, updateExisting?: boolean, groupId?: string): Promise<void>;
-    addElems(elems: [string, Type][], updateExisting?: boolean, groupId?: string): Promise<void>;
+    _dbSetElem(identifier: string, elem: Type, updateExisting?: boolean, groupId?: string, tx?: IDBPTransaction<ElemDBSchema, ["data"], "readwrite">): Promise<boolean>;
+    addElem(identifier: string, elem: Type, updateExisting?: boolean, groupId?: string): Promise<boolean>;
+    addElems(elems: [string, Type][], updateExisting?: boolean, groupId?: string): Promise<number>;
     deleteFromGroupId(groupId: string): Promise<number>;
     clear(): Promise<void>;
     getCount(): Promise<number>;

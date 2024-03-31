@@ -116,8 +116,10 @@ export abstract class ListStorage<Type> {
         updateExisting: boolean = false,
         groupId?: string,
         tx?: IDBPTransaction<ElemDBSchema, ["data"], "readwrite">,
-    ): Promise<void>{
+    ): Promise<boolean>{
         if(this.persistent && this.db){
+            let saved = false;
+
             if(!tx){
                 tx = this.db.transaction('data', 'readwrite');
             }
@@ -131,6 +133,7 @@ export abstract class ListStorage<Type> {
                         ...existingValue,
                         ...elem  
                     })
+                    saved = true;
                 }
             }else{
                 // New elem
@@ -142,8 +145,11 @@ export abstract class ListStorage<Type> {
                 if(groupId){
                     toStore['_groupId'] = groupId
                 }
-                await store.put(toStore)
+                await store.put(toStore);
+                saved = true;
             }
+
+            return saved;
         }else{
             throw new Error('DB doesnt exist')
         }
@@ -154,10 +160,10 @@ export abstract class ListStorage<Type> {
         elem: Type,
         updateExisting: boolean = false,
         groupId?: string
-    ){
+    ): Promise<boolean> {
         if(this.persistent && this.db){
             try{
-                await this._dbSetElem(
+                return await this._dbSetElem(
                     identifier,
                     elem,
                     updateExisting,
@@ -169,15 +175,17 @@ export abstract class ListStorage<Type> {
         }else{
             this.data.set(identifier, elem);
         }
+        return true;
     }
 
     async addElems(
         elems: [string, Type][],
         updateExisting: boolean = false,
         groupId?: string
-    ){
+    ): Promise<number> {
+
         if(this.persistent && this.db){
-            const createPromises: Promise<void>[] = [];
+            const createPromises: Promise<boolean|void>[] = [];
 
             const tx = this.db.transaction('data', 'readwrite');
             const processedIdentifiers: string[] = []
@@ -198,12 +206,21 @@ export abstract class ListStorage<Type> {
             });
             if(createPromises.length > 0){
                 createPromises.push(tx.done)
-                await Promise.all(createPromises)
+                const results = await Promise.all(createPromises);
+                let counter = 0;
+                results.forEach((result)=>{
+                    if(typeof(result)==="boolean" && result){
+                        counter += 1;
+                    }
+                })
+                return counter
             }
+            return 0
         }else{
             elems.forEach(([identifier, elem])=>{
                 this.addElem(identifier, elem)
             })
+            return elems.length;
         }
     }
 

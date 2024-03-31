@@ -107,6 +107,7 @@ export class ListStorage {
     _dbSetElem(identifier, elem, updateExisting = false, groupId, tx) {
         return __awaiter(this, void 0, void 0, function* () {
             if (this.persistent && this.db) {
+                let saved = false;
                 if (!tx) {
                     tx = this.db.transaction('data', 'readwrite');
                 }
@@ -115,6 +116,7 @@ export class ListStorage {
                 if (existingValue) {
                     if (updateExisting) {
                         yield store.put(Object.assign(Object.assign({}, existingValue), elem));
+                        saved = true;
                     }
                 }
                 else {
@@ -124,7 +126,9 @@ export class ListStorage {
                         toStore['_groupId'] = groupId;
                     }
                     yield store.put(toStore);
+                    saved = true;
                 }
+                return saved;
             }
             else {
                 throw new Error('DB doesnt exist');
@@ -135,7 +139,7 @@ export class ListStorage {
         return __awaiter(this, void 0, void 0, function* () {
             if (this.persistent && this.db) {
                 try {
-                    yield this._dbSetElem(identifier, elem, updateExisting, groupId);
+                    return yield this._dbSetElem(identifier, elem, updateExisting, groupId);
                 }
                 catch (err) {
                     console.error(err);
@@ -144,6 +148,7 @@ export class ListStorage {
             else {
                 this.data.set(identifier, elem);
             }
+            return true;
         });
     }
     addElems(elems, updateExisting = false, groupId) {
@@ -161,13 +166,22 @@ export class ListStorage {
                 });
                 if (createPromises.length > 0) {
                     createPromises.push(tx.done);
-                    yield Promise.all(createPromises);
+                    const results = yield Promise.all(createPromises);
+                    let counter = 0;
+                    results.forEach((result) => {
+                        if (typeof (result) === "boolean" && result) {
+                            counter += 1;
+                        }
+                    });
+                    return counter;
                 }
+                return 0;
             }
             else {
                 elems.forEach(([identifier, elem]) => {
                     this.addElem(identifier, elem);
                 });
+                return elems.length;
             }
         });
     }
