@@ -4,7 +4,7 @@
     "build": "tsc"
   },
   "main": "dist/index.js",
-  "version": "0.0.34",
+  "version": "0.1.0",
   "author": "",
   "license": "MIT",
   "dependencies": {

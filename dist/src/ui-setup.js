@@ -1,31 +1,28 @@
-
-export function createTextSpan(content: string, idAttribute?: string): HTMLSpanElement{
+export function createTextSpan(content, idAttribute) {
     const span = document.createElement("span");
-    if(idAttribute){
-        span.setAttribute('id', idAttribute)
+    if (idAttribute) {
+        span.setAttribute('id', idAttribute);
     }
     span.textContent = content;
     return span;
 }
-
-export function createBtn(borderLeft?: boolean): HTMLDivElement {
+export function createBtn(borderLeft) {
     const btn = document.createElement('div');
     const btnStyles = [
         'display: block;',
         'padding: 0px 4px;'
-    ]
-    if(borderLeft){
+    ];
+    if (borderLeft) {
         btnStyles.push(...[
             'border-left: 1px solid #2e2e2e;',
             'margin-left: 4px;'
-        ])
+        ]);
     }
     btn.setAttribute('style', btnStyles.join(''));
-    return btn
+    return btn;
 }
-
-function createInner(): HTMLDivElement{
-    const inner = document.createElement('div')
+function createInner() {
+    const inner = document.createElement('div');
     const innerStyles = [
         'position: absolute;',
         'bottom: 30px;',
@@ -43,13 +40,11 @@ function createInner(): HTMLDivElement{
         'height: 36px;',
         'align-items: center;',
         'justify-content: center;'
-    ]
+    ];
     inner.setAttribute('style', innerStyles.join(''));
-
-    return inner
+    return inner;
 }
-
-export function initCanva(): HTMLDivElement{
+export function initCanva() {
     const canva = document.createElement('div');
     const canvasStyles = [
         'position: fixed;',
@@ -59,12 +54,10 @@ export function initCanva(): HTMLDivElement{
         'width: 100%;',
         'height: 100%;',
         'pointer-events: none;'
-    ]
+    ];
     canva.setAttribute('style', canvasStyles.join(''));
-
     const inner = createInner();
     canva.appendChild(inner);
     document.body.appendChild(canva);
-
-    return inner
+    return inner;
 }

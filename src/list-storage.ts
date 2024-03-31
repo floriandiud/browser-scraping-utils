@@ -1,10 +1,29 @@
-import { openDB, IDBPDatabase, IDBPObjectStore, IDBPTransaction } from 'idb';
+import { openDB, IDBPDatabase, IDBPObjectStore, IDBPTransaction, DBSchema } from 'idb';
+
+interface ElemDB {
+    _pk: string
+    _createdAt: Date,
+    _groupId?: string,
+    [key: string]: any
+}
+
+export interface ElemDBSchema extends DBSchema {
+    data: {
+        key: string,
+        value: ElemDB,
+        indexes: {
+            _pk: string,
+            _createdAt: Date,
+            _groupId: string
+        }
+    }
+}
 
 export abstract class ListStorage<Type> {
     readonly name: string = 'scrape-storage';
     persistent: boolean = true;
     data:Map<string, Type> = new Map();
-    db?: IDBPDatabase;
+    db?: IDBPDatabase<ElemDBSchema>;
 
     constructor(options?: {
         name?: string,
@@ -24,8 +43,8 @@ export abstract class ListStorage<Type> {
     }
 
     async initDB(){
-        this.db = await openDB(this.storageKey, 5, {
-            upgrade(db, oldVersion: number, newVersion:number, transaction) {
+        this.db = await openDB(this.storageKey, 6, {
+            upgrade(db: IDBPDatabase<ElemDBSchema>, oldVersion: number, newVersion:number, transaction) {
                 let dataStore: IDBPObjectStore<any, any, any, any>;
 
                 if(oldVersion<5){
@@ -46,6 +65,10 @@ export abstract class ListStorage<Type> {
                     // @ts-ignore
                     dataStore.createIndex("_createdAt", "_createdAt");
                 }
+                if (dataStore && !dataStore.indexNames.contains("_groupId")) {
+                    // @ts-ignore
+                    dataStore.createIndex("_groupId", "_groupId");
+                }
                 if (dataStore && !dataStore.indexNames.contains("_pk")) {
                     // @ts-ignore
                     dataStore.createIndex("_pk", "_pk", {
@@ -58,7 +81,7 @@ export abstract class ListStorage<Type> {
 
     async _dbGetElem(
         identifier: string,
-        tx?: IDBPTransaction<unknown, ["data"], "readonly">,
+        tx?: IDBPTransaction<ElemDBSchema, ["data"], "readonly">,
     ): Promise<Type|undefined>{
         if(this.persistent && this.db){
             if(!tx){
@@ -67,7 +90,7 @@ export abstract class ListStorage<Type> {
             const store = tx.store;
 
             const existingValue = await store.index("_pk").get(identifier)
-            return existingValue;
+            return existingValue as Type;
         }else{
             throw new Error('DB doesnt exist')
         }
@@ -91,7 +114,8 @@ export abstract class ListStorage<Type> {
         identifier: string,
         elem: Type,
         updateExisting: boolean = false,
-        tx?: IDBPTransaction<unknown, ["data"], "readwrite">,
+        groupId?: string,
+        tx?: IDBPTransaction<ElemDBSchema, ["data"], "readwrite">,
     ): Promise<void>{
         if(this.persistent && this.db){
             if(!tx){
@@ -110,11 +134,15 @@ export abstract class ListStorage<Type> {
                 }
             }else{
                 // New elem
-                await store.put({
+                const toStore: ElemDB = {
                     "_pk": identifier,
                     "_createdAt": new Date(),
                     ...elem  
-                })
+                }
+                if(groupId){
+                    toStore['_groupId'] = groupId
+                }
+                await store.put(toStore)
             }
         }else{
             throw new Error('DB doesnt exist')
@@ -124,11 +152,17 @@ export abstract class ListStorage<Type> {
     async addElem(
         identifier: string,
         elem: Type,
-        updateExisting: boolean = false
+        updateExisting: boolean = false,
+        groupId?: string
     ){
         if(this.persistent && this.db){
             try{
-                await this._dbSetElem(identifier, elem, updateExisting)
+                await this._dbSetElem(
+                    identifier,
+                    elem,
+                    updateExisting,
+                    groupId
+                )
             }catch(err){
                 console.error(err)
             }
@@ -139,7 +173,8 @@ export abstract class ListStorage<Type> {
 
     async addElems(
         elems: [string, Type][],
-        updateExisting: boolean = false
+        updateExisting: boolean = false,
+        groupId?: string
     ){
         if(this.persistent && this.db){
             const createPromises: Promise<void>[] = [];
@@ -151,7 +186,13 @@ export abstract class ListStorage<Type> {
                 if(processedIdentifiers.indexOf(identifier)===-1){
                     processedIdentifiers.push(identifier)
                     createPromises.push(
-                        this._dbSetElem(identifier, elem, updateExisting, tx)
+                        this._dbSetElem(
+                            identifier,
+                            elem,
+                            updateExisting,
+                            groupId,
+                            tx
+                        )
                     )
                 }
             });
@@ -163,6 +204,24 @@ export abstract class ListStorage<Type> {
             elems.forEach(([identifier, elem])=>{
                 this.addElem(identifier, elem)
             })
+        }
+    }
+
+    async deleteFromGroupId(
+        groupId: string
+    ): Promise<number> {
+        if(this.persistent && this.db){
+            let counter = 0;
+            const txWrite = this.db.transaction('data', 'readwrite');
+            let cursor = await txWrite.store.index('_groupId').openCursor(IDBKeyRange.only(groupId))
+            while (cursor) {
+                cursor.delete()
+                cursor = await cursor.continue();
+                counter += 1
+            }
+            return counter;
+        }else{
+            throw new Error('Not Implemented Error')
         }
     }
 
@@ -192,7 +251,7 @@ export abstract class ListStorage<Type> {
                         _id,
                         ...itemData
                     } = storageItem;
-                    data.set(_id, itemData)
+                    data.set(_id, itemData as Type)
                 })
             }
             return data;

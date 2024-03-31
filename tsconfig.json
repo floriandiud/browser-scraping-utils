@@ -10,5 +10,8 @@
     "module": "ESNext",
     "moduleResolution": "node"
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/**/*",
+    "examples/*.ts",
+  ],
 }

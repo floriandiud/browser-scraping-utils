@@ -1,5 +1,16 @@
 import {exportToCsv} from './csv-exporter';
 import {ListStorage} from './list-storage'
-import {initCanva, createBtn, createTextSpan} from './ui-setup';
+import {UIContainer, createCta, createSpacer, createTextSpan} from './ui-builder';
+import {randomString} from './utils';
+import {HistoryTracker} from './history'
 
-export { exportToCsv,  ListStorage, initCanva, createBtn, createTextSpan}
+export {
+    exportToCsv,
+    ListStorage,
+    UIContainer,
+    createCta,
+    createSpacer,
+    createTextSpan,
+    randomString,
+    HistoryTracker
+}
