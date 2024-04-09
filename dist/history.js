@@ -16,6 +16,7 @@ const historyPanelStyles = [
     "font-family: monospace;",
     "font-size: 16px;",
     "box-shadow: rgba(42, 35, 66, 0.2) 0 2px 2px,rgba(45, 35, 66, 0.2) 0 7px 13px -4px;",
+    "color: #2f2f2f;"
 ];
 const historyUlStyles = [
     "list-style: none;",
