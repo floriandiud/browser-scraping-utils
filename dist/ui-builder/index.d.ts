@@ -7,6 +7,7 @@ export declare class UIContainer {
     readonly history: HTMLDivElement;
     readonly ctas: HTMLDivElement[];
     constructor();
+    makeItDraggable(): void;
     render(): void;
     addCta(cta: HTMLDivElement, index?: number): void;
 }

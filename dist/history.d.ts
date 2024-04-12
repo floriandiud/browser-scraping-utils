@@ -1,16 +1,27 @@
-interface HistoryLog {
+export declare enum LogCategory {
+    ADD = "add",
+    LOG = "log"
+}
+interface HistoryLogAdds {
     index: number;
     createdAt: Date;
     label: string;
     groupId: string;
     numberItems: number;
-    cancellable: boolean;
+    cancellable?: boolean;
+    category: LogCategory.ADD;
+}
+interface HistoryLogInfo {
+    index: number;
+    createdAt: Date;
+    label: string;
+    category: LogCategory.LOG;
 }
 export declare class HistoryTracker {
     readonly onDelete: (groupId: string) => Promise<void>;
     readonly maxLogs: number;
     readonly container: HTMLElement;
-    logs: HistoryLog[];
+    logs: Array<HistoryLogAdds | HistoryLogInfo>;
     panelRef: HTMLDivElement | null;
     counter: number;
     constructor({ onDelete, divContainer, maxLogs }: {
@@ -20,11 +31,15 @@ export declare class HistoryTracker {
     });
     renderPanel(): HTMLDivElement;
     renderLogs(): void;
-    addHistoryLog({ label, groupId, numberItems, cancellable }: {
+    addHistoryLog(data: {
         label: string;
         groupId: string;
         numberItems: number;
         cancellable: boolean;
+        category: LogCategory.ADD;
+    } | {
+        label: string;
+        category: LogCategory.LOG;
     }): void;
     cleanLogs(): void;
 }

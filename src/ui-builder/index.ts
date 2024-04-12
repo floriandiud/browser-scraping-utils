@@ -1,3 +1,4 @@
+import {createSpacer} from './cta';
 
 export {createCta, createSpacer} from './cta'
 export {createTextSpan} from './text'
@@ -92,7 +93,49 @@ export class UIContainer{
         // Create a container for the buttons
         this.container = document.createElement('div')
         this.container.setAttribute('style', ctaContainerStyles.join(''));
-        this.inner.appendChild(this.container);
+        this.inner.appendChild(this.container);        
+    }
+
+    makeItDraggable(){
+        let posX = 0,
+            posY = 0,
+            mouseX = 0,
+            mouseY = 0;
+
+        const moveElement = (e: MouseEvent) => {
+            mouseX = e.clientX - posX;
+            mouseY = e.clientY - posY;
+
+            // Change right and bottom position
+            this.inner.style.right = window.innerWidth - mouseX - this.inner.offsetWidth + "px";
+            this.inner.style.bottom = window.innerHeight - mouseY - this.inner.offsetHeight + 'px';
+        }
+
+        const mouseDown = (e: MouseEvent) => {
+            e.preventDefault();
+            posX = e.clientX - this.inner.offsetLeft;
+            posY = e.clientY - this.inner.offsetTop;
+            window.addEventListener('mousemove', moveElement, false);
+        }
+
+        const mouseUp = () => {
+            window.removeEventListener('mousemove', moveElement, false);
+        }
+        
+        this.inner.addEventListener('mousedown', mouseDown, false);
+        window.addEventListener('mouseup', mouseUp, false);
+
+        const draggableIcon = `<svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="18px" width="18px" xmlns="http://www.w3.org/2000/svg"><polyline points="5 9 2 12 5 15"></polyline><polyline points="9 5 12 2 15 5"></polyline><polyline points="15 19 12 22 9 19"></polyline><polyline points="19 9 22 12 19 15"></polyline><line x1="2" y1="12" x2="22" y2="12"></line><line x1="12" y1="2" x2="12" y2="22"></line></svg>`
+        const draggableIconElem = document.createElement('div');
+        draggableIconElem.style.cursor = "move";
+        
+        draggableIconElem.innerHTML = draggableIcon
+        this.addCta(
+            createSpacer()
+        )
+        this.addCta(
+            draggableIconElem
+        )
     }
 
     render(){

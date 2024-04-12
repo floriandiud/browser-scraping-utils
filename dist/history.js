@@ -7,6 +7,11 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+export var LogCategory;
+(function (LogCategory) {
+    LogCategory["ADD"] = "add";
+    LogCategory["LOG"] = "log";
+})(LogCategory || (LogCategory = {}));
 const historyPanelStyles = [
     "text-align: right;",
     "background: #f5f5fa;",
@@ -63,8 +68,15 @@ export class HistoryTracker {
         this.logs.forEach(log => {
             const listElem = document.createElement('li');
             listElem.setAttribute('style', historyLiStyles.join(''));
-            listElem.innerHTML = `<div>#${log.index} ${log.label} (${log.numberItems})</div>`;
-            if (log.cancellable) {
+            let logHtml;
+            if (log.category === LogCategory.ADD) {
+                logHtml = `<div>#${log.index} ${log.label} (${log.numberItems})</div>`;
+            }
+            else {
+                logHtml = `<div>#${log.index} ${log.label}</div>`;
+            }
+            listElem.innerHTML = logHtml;
+            if (log.category === LogCategory.ADD && log.cancellable) {
                 // Add delete icon
                 const deleteIcon = document.createElement('div');
                 deleteIcon.setAttribute('style', deleteIconStyles.join(''));
@@ -86,16 +98,32 @@ export class HistoryTracker {
         this.panelRef = panel;
         this.container.appendChild(panel);
     }
-    addHistoryLog({ label, groupId, numberItems, cancellable }) {
+    addHistoryLog(data) {
         this.counter += 1;
-        const log = {
-            index: this.counter,
-            label,
-            groupId,
-            numberItems,
-            cancellable,
-            createdAt: new Date()
-        };
+        let log;
+        if (data.category === LogCategory.ADD) {
+            log = {
+                index: this.counter,
+                label: data.label,
+                groupId: data.groupId,
+                numberItems: data.numberItems,
+                cancellable: data.cancellable,
+                createdAt: new Date(),
+                category: LogCategory.ADD
+            };
+        }
+        else if (data.category === LogCategory.LOG) {
+            log = {
+                index: this.counter,
+                label: data.label,
+                createdAt: new Date(),
+                category: LogCategory.LOG
+            };
+        }
+        else {
+            console.error('Missing category');
+            return;
+        }
         this.logs.unshift(log);
         if (this.logs.length > this.maxLogs) {
             this.logs.splice(this.maxLogs);
