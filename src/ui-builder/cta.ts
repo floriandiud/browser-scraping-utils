@@ -24,7 +24,7 @@ const spacerStyles: string[] = [
     "border-left: 1px solid #2e2e2e;"
 ];
 
-export function createSpacer(){
+export function createSpacer(): HTMLDivElement{
     const spacer = document.createElement('div');
     spacer.innerHTML = "&nbsp;";
     spacer.setAttribute('style', spacerStyles.join(''));
